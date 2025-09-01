@@ -6,7 +6,8 @@ RUN apk update \
     && apk upgrade --no-cache \
     && apk add --no-cache \
     nginx unzip curl python3 py3-pip py3-setuptools \
-    icu-dev libzip-dev libpng-dev freetype-dev jpeg-dev \
+    icu-dev libzip-dev libpng-dev freetype-dev jpeg-dev libwebp-dev \
+    tiff-dev libxpm-dev \
     oniguruma-dev bash autoconf build-base openssh-client zip libxml2-dev
 
 # Create supervisor log directory
@@ -19,10 +20,9 @@ RUN apk add --no-cache --repository=http://dl-cdn.alpinelinux.org/alpine/edge/ma
 # Install supervisor via pip to avoid pkg_resources issues and get better Docker compatibility
 RUN pip3 install --no-cache-dir --break-system-packages supervisor
 
-# Install PHP extensions using docker-php-ext-install
-
+# Install PHP extensions using docker-php-ext-install and PECL
 RUN docker-php-ext-configure intl \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp --with-xpm \
     && docker-php-ext-install -j$(nproc) \
     pdo_mysql \
     mbstring \
@@ -34,9 +34,6 @@ RUN docker-php-ext-configure intl \
     opcache \
     intl \
     xml
-
-# Install Redis extension via PECL
-RUN pecl install redis && docker-php-ext-enable redis
 
 # Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -63,8 +60,6 @@ COPY production/opcache.ini      /usr/local/etc/php/conf.d/opcache.ini
 # Install composer dependencies
 RUN composer install --optimize-autoloader --no-interaction
 
-RUN if [ "$ENV_TYPE" = "dev" ]; then php artisan migrate --force; php artisan project:init; fi
-
 # Set environment file
 RUN if [ "$ENV_TYPE" = "prod" ]; then cp .env.prod .env; fi
 
@@ -84,6 +79,8 @@ RUN npm install -g npm@latest
 
 # Install and build front-end assets
 RUN npm ci
+# Force install the missing rollup binary for Alpine Linux and clean npm cache
+RUN npm install --save-dev @rollup/rollup-linux-x64-musl || true
 RUN npm run build
 
 EXPOSE 80 9000

@@ -1,4 +1,4 @@
-IMAGE_NAME ?= notq-python
+IMAGE_NAME ?= notq-laravel
 REGISTRY ?= ghcr.io/notq
 
 TAG ?= latest
@@ -8,7 +8,7 @@ REMOTE_IMAGE := $(REGISTRY)/$(IMAGE_NAME):$(TAG)
 .PHONY: build tag push deploy
 
 build:
-	docker build -t $(IMAGE) .
+	docker build -t $(IMAGE) --build-arg ENV_TYPE=prod .
 
 tag:
 	docker tag $(IMAGE) $(REMOTE_IMAGE)
@@ -17,9 +17,3 @@ push:
 	docker push $(REMOTE_IMAGE)
 
 deploy: build tag push
-
-stl:
-	streamlit run streamlit.py
-
-main:
-	python main.py
